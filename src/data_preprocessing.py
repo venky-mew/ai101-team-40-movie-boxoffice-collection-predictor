@@ -1,114 +1,76 @@
 import json
+import kagglehub
 import pandas as pd
-
-NUM_FEATURES = [
-    "budget",
-    "popularity",
-    "runtime",
-    "vote_count",
-    "cast_size",
-    "crew_size",
-    "genre_count",
-]
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 
-def load_dataset():
-    """Load and merge the TMDB movies and credits datasets."""
+def parse_json_count(json_str: str) -> int:
+    """Safely extracts the element count from a JSON string representation of a list."""
     try:
-        import kagglehub
-    except ImportError as exc:
-        raise ImportError(
-            "Install required packages using: "
-            "pip install kagglehub pandas numpy scikit-learn matplotlib seaborn"
-        ) from exc
+        return len(json.loads(json_str))
+    except (json.JSONDecodeError, TypeError):
+        return 0
 
-    dataset_path = kagglehub.dataset_download(
-        "tmdb/tmdb-movie-metadata"
+
+def load_and_preprocess_tmdb_data(
+    num_features: list[str],
+    target: str,
+    test_size: float = 0.2,
+    random_state: int = 42,
+):
+    """Downloads TMDB movie dataset, merges credits, engineers JSON count features,
+
+    filters invalid rows, splits data, and returns scaled features along with evaluation correlation matrix.
+    """
+    # 1. Download & Load Datasets
+    dataset_path = kagglehub.dataset_download("tmdb/tmdb-movie-metadata")
+    movies_df = pd.read_csv(f"{dataset_path}/tmdb_5000_movies.csv")
+    credits_df = pd.read_csv(f"{dataset_path}/tmdb_5000_credits.csv")
+
+    # 2. Merge Datasets
+    credits_df.rename(columns={"movie_id": "id"}, inplace=True)
+    df = movies_df.merge(credits_df[["id", "cast", "crew"]], on="id")
+
+    # 3. Feature Engineering (JSON parsing)
+    df["cast_size"] = df["cast"].apply(parse_json_count)
+    df["crew_size"] = df["crew"].apply(parse_json_count)
+    df["genres_count"] = df["genres"].apply(parse_json_count)
+
+    # 4. Extract target dataset & clean missing/invalid records
+    analysis_df = df[num_features + [target]].copy()
+    analysis_df["runtime"] = analysis_df["runtime"].fillna(
+        analysis_df["runtime"].median()
     )
 
-    movies = pd.read_csv(
-        f"{dataset_path}/tmdb_5000_movies.csv"
-    )
-    credits = pd.read_csv(
-        f"{dataset_path}/tmdb_5000_credits.csv"
-    )
-
-    return movies.merge(
-        credits,
-        left_on="id",
-        right_on="movie_id",
-        how="inner",
-        suffixes=("", "_credits"),
+    # Filter unreleased or non-revenue movies
+    clean_df = (
+        analysis_df[
+            (analysis_df["revenue"] > 10000) & (analysis_df["budget"] > 10000)
+        ]
+        .copy()
+        .reset_index(drop=True)
     )
 
+    corr_matrix = clean_df.corr()
 
-def print_initial_analysis(df):
-    """Print basic statistics and return feature correlations."""
-    print("\nDataset information:")
-    print(df.info())
-
-    print("\nDescriptive statistics:")
-    print(df.describe().to_string())
-
-    for column in ["cast", "crew", "genres"]:
-        if column in df.columns:
-            df[f"{column}_size"] = df[column].apply(
-                lambda value: len(json.loads(value))
-                if isinstance(value, str)
-                else 0
-            )
-
-    feature_columns = [
-        column for column in NUM_FEATURES
-        if column in df.columns
-    ]
-
-    correlations = df[
-        feature_columns + ["vote_average"]
-    ].corr(numeric_only=True)
-
-    print("\nCorrelation with vote_average:")
-    print(correlations["vote_average"].sort_values(ascending=False))
-
-    return correlations
-
-
-def prepare_data(df):
-    """Clean data, scale features, and split into train/test sets."""
-    from sklearn.model_selection import train_test_split
-    from sklearn.preprocessing import StandardScaler
-
-    df = df.copy()
-
-    # Fill missing runtimes with the median.
-    df["runtime"] = df["runtime"].fillna(df["runtime"].median())
-
-    # Keep movies with at least 15 votes.
-    df = df[df["vote_count"] >= 15].copy()
-
-    # Create the features expected by the model.
-    df["cast_size"] = df["cast"].apply(
-        lambda value: len(json.loads(value))
-        if isinstance(value, str) else 0
-    )
-    df["crew_size"] = df["crew"].apply(
-        lambda value: len(json.loads(value))
-        if isinstance(value, str) else 0
-    )
-    df["genre_count"] = df["genres"].apply(
-        lambda value: len(json.loads(value))
-        if isinstance(value, str) else 0
-    )
-
-    X = df[NUM_FEATURES].fillna(0)
-    y = df["vote_average"]
+    # 5. Features & Target Split
+    X = clean_df[num_features]
+    y = clean_df[target]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=test_size, random_state=random_state
     )
 
+    # 6. Feature Scaling
     scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
 
-    return X_train, X_test, y_train, y_test, scaler, df
+    return (
+        X_train_scaled,
+        X_test_scaled,
+        y_train,
+        y_test,
+        corr_matrix,
+    )
