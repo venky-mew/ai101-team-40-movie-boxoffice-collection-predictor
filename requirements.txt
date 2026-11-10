@@ -1,0 +1,9 @@
+REQUIREMETS:
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+kagglehub
+jupyter
+ipykernel
