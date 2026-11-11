@@ -288,11 +288,11 @@ The notebook includes the code and saved execution outputs so that the project w
 
 **Presentation Slides (PDF):**
 
-[INSERT GITHUB LINK TO YOUR 5-SLIDE PDF HERE]
+https://drive.google.com/file/d/1zar3MSWJBscqDwZlgJGGYZz0EdCjK3ZE/view?usp=drivesdk
 
 **Project Demonstration Video:**
 
-[INSERT YOUTUBE VIDEO LINK HERE]
+https://drive.google.com/file/d/1LgKNGtB1vr96Enxt01c5_8jCQDQGqGvI/view?usp=drivesdk
 
 The demonstration video covers:
 
