@@ -125,7 +125,7 @@ ai101-team-40-movie-boxoffice-collection-predictor/
 ### Step 1: Clone the Repository
 
 ```bash
-git clone [YOUR_GITHUB_REPOSITORY_URL]
+git clone https://github.com/venky-mew/ai101-team-40-movie-boxoffice-collection-predictor.git
 ```
 
 ### Step 2: Open the Project Folder
