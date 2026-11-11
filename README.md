@@ -280,7 +280,7 @@ The notebook contains:
 
 **Output Screenshot:**
 
-[INSERT SCREENSHOT OF YOUR ACTUAL MODEL RESULTS HERE]
+![](image.png)
 
 The notebook includes the code and saved execution outputs so that the project workflow and results can be reviewed.
 
